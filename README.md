@@ -4,7 +4,7 @@ Reproducible, leakage-free machine-learning pipeline (Entregable #5, Seminario D
 Author: Aly Gallo. Context: ChroniCare-AI doctoral thesis (Biological State Index / Adaptive Capacity).
 
 ## What this repo demonstrates
-1. **No data leakage** – imputer, scaler and model live inside one scikit-learn `Pipeline`; `GridSearchCV` wraps the whole Pipeline; the train/test split happens *before* anything is fitted (`src/pipeline.py`, `src/data.py`). Six automated tests check this (`tests/test_no_leakage.py`).
+1. **No data leakage** – imputer, scaler and model live inside one scikit-learn `Pipeline`; `GridSearchCV` wraps the whole Pipeline; the train/test split happens *before* anything is fitted (`src/pipeline.py`, `src/data.py`). Nine automated tests check this (`tests/`), including the Class-5 checks: dataset SHA-256 fingerprint, no duplicate patients between train and test, and the "noise trick" (100 fake patients × 5000 random columns: leaky feature selection gives a fake high accuracy, selection inside the Pipeline stays at chance).
 2. **5 seeds in MLflow, mean ± SD** – seeds `0–4` (each seed changes the train/test split, the CV folds and the model's RNG). One parent MLflow run per model, one nested child run per seed; parent logs `<metric>_mean` and `<metric>_sd` (sample SD, ddof=1).
 3. **Stranger test** – pinned `requirements.txt` + fixed seeds + single-threaded training → the numbers below are reproduced exactly.
 
@@ -18,7 +18,7 @@ git clone <this-repo-url> chronicare-ml-pipeline
 cd chronicare-ml-pipeline
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-pytest -q                      # 6 anti-leakage tests (~30 s)
+pytest -q                      # 9 tests (~30 s)
 python -m src.run_experiment   # ~1–2 min; prints the table below
 mlflow ui --backend-store-uri sqlite:///mlflow.db     # optional: browse runs at http://127.0.0.1:5000
 ```
@@ -32,6 +32,9 @@ Outputs: `results/summary.md`, `results/summary.json`, `results/per_seed_metrics
 | random_forest | 58.483 ± 2.209 | 46.143 ± 1.645 | 0.361 ± 0.062 |
 
 Ridge beats the mean-predicting baseline by ~18 RMSE points; the Random Forest does not beat Ridge on this small linear-ish dataset. The SD reflects variability across 5 random splits, so it is an optimistic-free but small-n (5) estimate; do not read it as a confidence interval.
+
+## Limits (Class 5: "reproducible is not valid")
+Reproducing the same number does not make it clinically valid. Exact identity is only promised on CPU with the pinned versions (Python 3.13, Linux); other platforms/BLAS builds may differ in the last decimals. The dataset SHA-256 fingerprint (`c4a9350c…ef1744`) is logged in every MLflow parent run together with the Python version.
 
 ## Design details
 | Item | Choice |

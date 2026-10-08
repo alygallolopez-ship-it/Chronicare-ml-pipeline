@@ -5,6 +5,7 @@ Structure in MLflow: one parent run per model, one nested child run per seed.
 The parent run logs <metric>_mean and <metric>_sd (sample SD, ddof=1).
 """
 import json
+import platform
 import warnings
 
 import mlflow
@@ -14,6 +15,7 @@ from sklearn.metrics import mean_absolute_error, r2_score, root_mean_squared_err
 
 from .config import EXPERIMENT_NAME, SEEDS, TRACKING_URI
 from .data import load_data, split
+from .fingerprint import data_fingerprint
 from .pipeline import make_search
 
 MODELS = ("dummy", "ridge", "random_forest")
@@ -38,12 +40,15 @@ def main():
     mlflow.set_tracking_uri(TRACKING_URI)
     mlflow.set_experiment(EXPERIMENT_NAME)
     X, y = load_data()
+    fp = data_fingerprint(X, y)
+    py = platform.python_version()
     rows, summary = [], {}
 
     for model in MODELS:
         with mlflow.start_run(run_name=model):
             mlflow.log_params({"model": model, "seeds": list(SEEDS),
-                               "n_seeds": len(SEEDS)})
+                               "n_seeds": len(SEEDS),
+                               "data_sha256": fp, "python": py})
             per_seed = []
             for seed in SEEDS:
                 with mlflow.start_run(run_name=f"{model}_seed{seed}", nested=True):
@@ -74,6 +79,7 @@ def main():
     table = "\n".join(lines)
     with open("results/summary.md", "w") as f:
         f.write(table + "\n")
+    print(f"Data SHA-256: {fp}\nPython: {py}")
     print(f"Seeds: {list(SEEDS)}  (SD = sample SD, ddof=1)\n")
     print(table)
 
