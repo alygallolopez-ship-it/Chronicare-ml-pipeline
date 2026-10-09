@@ -14,7 +14,7 @@ The thesis data (hospital EHR) is not available yet. This pipeline uses scikit-l
 ## Reproduce (stranger test)
 Tested with Python 3.13 (Linux).
 ```bash
-git clone <this-repo-url> chronicare-ml-pipeline
+git clone https://github.com/alygallolopez-ship-it/Chronicare-ml-pipeline.git chronicare-ml-pipeline
 cd chronicare-ml-pipeline
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
