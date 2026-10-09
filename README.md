@@ -19,7 +19,11 @@ cd chronicare-ml-pipeline
 python -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 pytest -q                      # 9 tests (~30 s)
-python -m src.run_experiment   # ~1–2 min; prints the table below
+PYTHONHASHSEED=0 python -m src.run_experiment   # ~1–2 min; prints the table below
+# same seed twice must give identical output (Class 5 test):
+PYTHONHASHSEED=0 python -m src.run_experiment --models ridge --seeds 42 --out-dir /tmp/a
+PYTHONHASHSEED=0 python -m src.run_experiment --models ridge --seeds 42 --out-dir /tmp/b
+diff /tmp/a/per_seed_metrics.csv /tmp/b/per_seed_metrics.csv && echo IDENTICAL
 mlflow ui --backend-store-uri sqlite:///mlflow.db     # optional: browse runs at http://127.0.0.1:5000
 ```
 Outputs: `results/summary.md`, `results/summary.json`, `results/per_seed_metrics.csv` (and MLflow runs in `mlflow.db`, git-ignored).
@@ -34,7 +38,7 @@ Outputs: `results/summary.md`, `results/summary.json`, `results/per_seed_metrics
 Ridge beats the mean-predicting baseline by ~18 RMSE points; the Random Forest does not beat Ridge on this small linear-ish dataset. The SD reflects variability across 5 random splits, so it is an optimistic-free but small-n (5) estimate; do not read it as a confidence interval.
 
 ## Limits (Class 5: "reproducible is not valid")
-Reproducing the same number does not make it clinically valid. Exact identity is only promised on CPU with the pinned versions (Python 3.13, Linux); other platforms/BLAS builds may differ in the last decimals. The dataset SHA-256 fingerprint (`c4a9350c…ef1744`) is logged in every MLflow parent run together with the Python version.
+Reproducing the same number does not make it clinically valid. Exact identity is only promised on CPU with the pinned versions (Python 3.13, Linux); other platforms/BLAS builds may differ in the last decimals. The dataset SHA-256 fingerprint (`c4a9350c…ef1744`) is logged in every MLflow parent run together with the Python version and the git commit.
 
 ## Design details
 | Item | Choice |

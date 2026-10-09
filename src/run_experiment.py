@@ -4,8 +4,11 @@ Usage:  python -m src.run_experiment
 Structure in MLflow: one parent run per model, one nested child run per seed.
 The parent run logs <metric>_mean and <metric>_sd (sample SD, ddof=1).
 """
+import argparse
 import json
 import platform
+import random
+import subprocess
 import warnings
 
 import mlflow
@@ -23,7 +26,21 @@ METRICS = ("rmse", "mae", "r2")
 warnings.filterwarnings("ignore")
 
 
+def set_seed(seed: int) -> None:
+    random.seed(seed)
+    np.random.seed(seed)
+
+
+def git_commit() -> str:
+    try:
+        return subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                              capture_output=True, text=True, check=True).stdout.strip()
+    except Exception:
+        return "unknown"
+
+
 def run_one(model: str, seed: int, X, y) -> dict:
+    set_seed(seed)
     X_tr, X_te, y_tr, y_te = split(X, y, seed)
     search = make_search(model, seed).fit(X_tr, y_tr)   # CV only on train
     pred = search.predict(X_te)                         # test touched once
@@ -36,7 +53,7 @@ def run_one(model: str, seed: int, X, y) -> dict:
     }
 
 
-def main():
+def main(models=MODELS, seeds=SEEDS, out_dir="results"):
     mlflow.set_tracking_uri(TRACKING_URI)
     mlflow.set_experiment(EXPERIMENT_NAME)
     X, y = load_data()
@@ -44,13 +61,14 @@ def main():
     py = platform.python_version()
     rows, summary = [], {}
 
-    for model in MODELS:
+    for model in models:
         with mlflow.start_run(run_name=model):
-            mlflow.log_params({"model": model, "seeds": list(SEEDS),
-                               "n_seeds": len(SEEDS),
+            mlflow.log_params({"model": model, "seeds": list(seeds),
+                               "n_seeds": len(seeds),
+                               "git_commit": git_commit(),
                                "data_sha256": fp, "python": py})
             per_seed = []
-            for seed in SEEDS:
+            for seed in seeds:
                 with mlflow.start_run(run_name=f"{model}_seed{seed}", nested=True):
                     r = run_one(model, seed, X, y)
                     mlflow.log_param("seed", seed)
@@ -67,9 +85,9 @@ def main():
                 mlflow.log_metrics({f"{m}_mean": mean, f"{m}_sd": sd})
                 summary[model][m] = {"mean": mean, "sd": sd}
 
-    pd.DataFrame(rows).to_csv("results/per_seed_metrics.csv", index=False,
+    pd.DataFrame(rows).to_csv(f"{out_dir}/per_seed_metrics.csv", index=False,
                               float_format="%.6f")
-    with open("results/summary.json", "w") as f:
+    with open(f"{out_dir}/summary.json", "w") as f:
         json.dump(summary, f, indent=2)
     lines = ["| model | RMSE (mean ± SD) | MAE (mean ± SD) | R² (mean ± SD) |",
              "|---|---|---|---|"]
@@ -77,12 +95,17 @@ def main():
         lines.append(f"| {model} | " + " | ".join(
             f"{s[m]['mean']:.3f} ± {s[m]['sd']:.3f}" for m in METRICS) + " |")
     table = "\n".join(lines)
-    with open("results/summary.md", "w") as f:
+    with open(f"{out_dir}/summary.md", "w") as f:
         f.write(table + "\n")
     print(f"Data SHA-256: {fp}\nPython: {py}")
-    print(f"Seeds: {list(SEEDS)}  (SD = sample SD, ddof=1)\n")
+    print(f"Seeds: {list(seeds)}  (SD = sample SD, ddof=1)\n")
     print(table)
 
 
 if __name__ == "__main__":
-    main()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--models", nargs="+", default=list(MODELS))
+    ap.add_argument("--seeds", nargs="+", type=int, default=list(SEEDS))
+    ap.add_argument("--out-dir", default="results")
+    a = ap.parse_args()
+    main(a.models, a.seeds, a.out_dir)
