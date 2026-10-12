@@ -6,6 +6,7 @@ The parent run logs <metric>_mean and <metric>_sd (sample SD, ddof=1).
 """
 import argparse
 import json
+import os
 import platform
 import random
 import subprocess
@@ -54,6 +55,7 @@ def run_one(model: str, seed: int, X, y) -> dict:
 
 
 def main(models=MODELS, seeds=SEEDS, out_dir="results"):
+    os.makedirs(out_dir, exist_ok=True)  # fresh machine: output folder may not exist
     mlflow.set_tracking_uri(TRACKING_URI)
     mlflow.set_experiment(EXPERIMENT_NAME)
     X, y = load_data()

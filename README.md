@@ -35,7 +35,7 @@ Outputs: `results/summary.md`, `results/summary.json`, `results/per_seed_metrics
 | ridge | 55.798 ± 1.758 | 44.221 ± 1.727 | 0.419 ± 0.052 |
 | random_forest | 58.483 ± 2.209 | 46.143 ± 1.645 | 0.361 ± 0.062 |
 
-Ridge beats the mean-predicting baseline by ~18 RMSE points; the Random Forest does not beat Ridge on this small linear-ish dataset. The SD reflects variability across 5 random splits, so it is an optimistic-free but small-n (5) estimate; do not read it as a confidence interval.
+Ridge beats the mean-predicting baseline by ~18 RMSE points; the Random Forest does not beat Ridge on this small linear-ish dataset. The SD reflects variability across 5 random splits, and the test set is never used for tuning, so the estimate is not optimistically biased by model selection. It is still a small-n (5) estimate; do not read the SD as a confidence interval.
 
 ## Limits (Class 5: "reproducible is not valid")
 Reproducing the same number does not make it clinically valid. Exact identity is only promised on CPU with the pinned versions (Python 3.13, Linux); other platforms/BLAS builds may differ in the last decimals. The dataset SHA-256 fingerprint (`c4a9350c…ef1744`) is logged in every MLflow parent run together with the Python version and the git commit.
